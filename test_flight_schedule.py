@@ -17,14 +17,15 @@ def test_reader():
         print(f"First Flight: {f}")
         
         # Verify specific values from inspection
-        # 1  WAW / ORD ... LO 1 ... 11APR26 12:00:00
+        # 0  WAW / ORD ... LO 1 ... 04APR26 12:00:00 ... 15:10:00
         assert f.origin == "WAW"
         assert f.destination == "ORD"
         assert f.airline_code == "LO"
         assert f.flight_number == "1"
         assert f.departure_time.year == 2026
         assert f.departure_time.month == 4
-        assert f.departure_time.day == 11
+        # Note: inspect_excel_v2 showed 04APR26 for first row, not 11APR26
+        assert f.departure_time.day == 4
         assert f.departure_time.hour == 12
         assert f.departure_time.minute == 0
         

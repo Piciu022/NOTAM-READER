@@ -31,55 +31,78 @@ class FlightScheduleReader:
     def read_file(self, file_path: str) -> List[Flight]:
         """
         Reads the flight schedule from an Excel file.
+        Adjusted for actual columns: Routing, Al, FltNbr, Date-LT, Std-LT, Sta-LT, Orig, Dest, etc.
         """
-        required_cols = ['Itinerary', 'Designator', 'Flt No', 'Dep Date', 'Dep Time', 'Arr Date', 'Arr Time']
+        
+        # Columns mapped to internal needs
+        # Orig -> origin
+        # Dest -> destination
+        # Al -> airline_code
+        # FltNbr -> flight_number
+        # Date-LT -> date part of departure
+        # Std-LT -> time part of departure
+        # Sta-LT -> time part of arrival
+        # Diff-LT -> days offset for arrival (optional, assumed 0 if NaN)
+
+        required_cols = ['Orig', 'Dest', 'Al', 'FltNbr', 'Date-LT', 'Std-LT', 'Sta-LT']
         
         try:
-            # Try efficient load first
-            df = pd.read_excel(file_path, usecols=required_cols, engine='openpyxl')
-        except ValueError as e:
-            print(f"Warning: usecols failed ({e}), loading full file.")
+            # Load specific columns
+            # Note: 'Diff-LT' might be useful so include it if present, but don't fail if missing?
+            # Let's read broadly to be safe, filtering later
             df = pd.read_excel(file_path, engine='openpyxl')
+        except Exception as e:
+            print(f"Error reading excel: {e}")
+            return []
 
         # Clean column names
         df.columns = df.columns.astype(str).str.strip()
         
-        print(f"Debug: Loaded columns: {df.columns.tolist()}")
-
-        # Verify required columns exist
+        # Verify required columns
         missing = [col for col in required_cols if col not in df.columns]
         if missing:
-            print(f"Error: Missing required columns: {missing}")
-            return []
+             # Fallback: maybe 'Itinerary' exists? No, we saw the cols.
+             print(f"Error: Missing required columns: {missing}")
+             print(f"Available: {df.columns.tolist()}")
+             return []
 
         flights = []
         
         for index, row in df.iterrows():
             try:
-                # Parse Itinerary
-                itinerary = str(row['Itinerary'])
-                if '/' not in itinerary:
-                    continue # Skip invalid rows
+                # Basic fields
+                origin = str(row['Orig']).strip()
+                destination = str(row['Dest']).strip()
+                airline = str(row['Al']).strip()
+                flt_no = str(row['FltNbr']).strip()
                 
-                parts = itinerary.split('/')
-                if len(parts) < 2:
-                    continue
+                # Times
+                date_lt_raw = row['Date-LT'] # Expected 04APR26
+                std_lt_raw = row['Std-LT']   # Expected 12:00:00
+                sta_lt_raw = row['Sta-LT']   # Expected 15:10:00
                 
-                origin = parts[0].strip()
-                destination = parts[1].strip()
+                # Calculate Departure Datetime
+                departure_dt = self._combine_date_time(date_lt_raw, std_lt_raw)
                 
-                # Parse Flight Info
-                airline = str(row['Designator']).strip()
-                flt_no = str(row['Flt No']).strip()
+                # Calculate Arrival Datetime
+                # Base arrival date is same as departure date
+                arrival_dt_base = self._combine_date_time(date_lt_raw, sta_lt_raw)
                 
-                dep_date_raw = row['Dep Date']
-                dep_time_raw = row['Dep Time']
-                arr_date_raw = row['Arr Date']
-                arr_time_raw = row['Arr Time']
+                # Handle day crossing (arrival time < departure time usually means +1 day, 
+                # but explicit Diff-LT is better if available)
+                day_offset = 0
+                if 'Diff-LT' in row and pd.notna(row['Diff-LT']):
+                     try:
+                         day_offset = int(row['Diff-LT'])
+                     except:
+                         pass
+                elif arrival_dt_base < departure_dt:
+                     # Heuristic: if arrival is before departure, add 1 day
+                     # (Assumes flight < 24h and no negative time travel > 24h, reasonable for commercial)
+                     day_offset = 1
+                
+                arrival_dt = arrival_dt_base + timedelta(days=day_offset)
 
-                departure_dt = self._combine_date_time(dep_date_raw, dep_time_raw)
-                arrival_dt = self._combine_date_time(arr_date_raw, arr_time_raw)
-                
                 flights.append(Flight(
                     origin=origin,
                     destination=destination,
@@ -89,8 +112,9 @@ class FlightScheduleReader:
                     arrival_time=arrival_dt
                 ))
             except Exception as e:
-                # Print full error for first few failures
-                print(f"Error on row {index}: {type(e).__name__}: {e}")
+                # Print error for debugging
+                if index < 5: 
+                    print(f"Error on row {index}: {e}")
                 continue
                 
         return flights
