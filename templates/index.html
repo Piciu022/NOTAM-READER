@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOTAM Reader & Decoder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Google Fonts for premium look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✈️ NOTAM Reader</h1>
+            <p>Decode, Archive, and Analyze Aviation Notices</p>
+        </header>
+
+        <main>
+            <section class="input-section">
+                <h2>Input NOTAM</h2>
+                <textarea id="notamInput" placeholder="Paste raw NOTAM text here... (e.g., A1234/23 NOTAMN Q) EPWW/...)"></textarea>
+                <div class="actions">
+                    <button onclick="decodeNotam()" class="primary-btn">Decode & Archive</button>
+                    <button onclick="fetchApi()" class="secondary-btn">Fetch from API (Mock)</button>
+                </div>
+            </section>
+
+            <section class="results-section" id="decodedResult" style="display:none;">
+                <h2>Decoded Information</h2>
+                <div class="notam-card" id="currentNotam">
+                    <!-- Content injected via JS -->
+                </div>
+            </section>
+
+            <section class="schedule-section">
+                <h2>Flight Schedule Impact</h2>
+                <div class="upload-box">
+                    <p>Upload Flight Schedule (CSV) or paste identifiers</p>
+                    <textarea id="scheduleInput" placeholder="FlightNo, Origin, Destination (e.g. LO123, EPWA, EGLL)"></textarea>
+                    <button onclick="checkImpact()" class="action-btn">Check Impact</button>
+                </div>
+                <div id="impactResults"></div>
+            </section>
+            
+            <section class="archive-section">
+                <h2>Archived NOTAMs</h2>
+                <button onclick="loadArchive()" class="small-btn">Refresh List</button>
+                <div id="archiveList" class="archive-grid"></div>
+            </section>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
